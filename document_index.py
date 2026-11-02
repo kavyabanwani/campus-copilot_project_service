@@ -627,4 +627,7 @@ def search_documents(
         for score, chunk, document in scored_sql[:top_k]
         if score > 0.05
     ]
+
+
+search = search_documents
     

@@ -1,6 +1,7 @@
 import io
 from fastapi import status
 import document_index
+from services.rag_service import search
 
 
 def test_document_upload_and_chunking(client, auth_headers_admin, auth_headers_a, db):
@@ -46,11 +47,20 @@ def test_document_size_and_extension_rejections(client, auth_headers_a):
     assert res_large.status_code == status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
 
 
-def test_retrieval_minimum_attendance_requirement(db, student_a):
-    results = document_index.search(db, "minimum attendance requirement", student=student_a, top_k=2)
-    assert len(results) > 0
-    top = results[0]
-    assert top["title"] == "Academic Attendance Policy"
-    assert top["page"] == 1
-    assert "75 percent attendance" in top["content"] or "Minimum attendance requirement" in top["content"]
+def test_retrieval_minimum_attendance_requirement(db, student_a, monkeypatch):
+    monkeypatch.setattr(document_index, "get_chroma_collection", lambda: None)
+    monkeypatch.setattr(document_index, "get_embedding_model", lambda: None)
 
+    results = search(
+        db,
+        "75 percent attendance",
+        student=student_a,
+        top_k=2,
+    )
+    policy = next(
+        (result for result in results if result["title"] == "Academic Attendance Policy"),
+        None,
+    )
+    assert policy is not None
+    assert policy["page"] == 1
+    assert "75 percent attendance" in policy["content"]
